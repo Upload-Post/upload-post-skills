@@ -7,11 +7,40 @@ metadata:
   author: mutonby
   version: "2.0.0"
   homepage: "https://github.com/mutonby/skill-autoshorts"
+allowed-tools: Read, Write, Edit, Glob, Bash(ffmpeg:*), Bash(ffprobe:*), Bash(python3:*), Bash(curl:*)
+version: "2.0.0"
+author: Upload-Post <support@upload-post.com>
+tags:
+- video
+- shorts
+- repurposing
+- whisper
+- social-media
 ---
 
 # AutoShorts — Daily Viral Clip Pipeline
 
 Pipeline tooling lives at `~/Documents/skill-autoshorts/`. Each day this skill picks ONE long video from `INPUT_FOLDER`, extracts every viable short-form clip (Gemini 3 Flash decides), shows them to the user for approval, and publishes the approved ones via Upload-Post.
+
+## Overview
+
+A once-a-day pipeline that turns one long video into a batch of publishable short clips.
+Each run: pick a video from `INPUT_FOLDER`, transcribe it with Whisper, let Gemini 3 Flash
+find every viable short-form moment, cut each with FFmpeg, overlay a hook, show the
+candidates to the user for approval, and publish the approved ones via Upload-Post to
+TikTok, Instagram Reels and YouTube Shorts.
+
+Nothing publishes without explicit approval — the user sees every candidate first.
+
+## Prerequisites
+
+- FFmpeg on PATH (`ffmpeg -version`)
+- Python 3.11+ with the pipeline's virtualenv installed
+- `GEMINI_API_KEY` for clip selection, `UPLOAD_POST_API_KEY` + `UPLOAD_POST_PROFILE` for publishing
+- `INPUT_FOLDER` with long videos, and a writable `OUTPUT_FOLDER`
+- TikTok, Instagram (Business/Creator) and YouTube connected in the Upload-Post dashboard
+
+The setup section below walks through each of these.
 
 ## Setup (only if not yet configured)
 
@@ -52,6 +81,21 @@ This skill is invoked daily by the **openclaw** harness, which also handles the 
 Concretely: at Step 5 you print the candidates table and ask which IDs to publish; openclaw delivers that table plus the clip files via the user's chosen channel; the user replies on their phone (e.g., "1, 3, 5"); openclaw injects that reply back; you continue with Steps 6–8. Same pattern for any other "ask the user" point in the workflow (metadata review, dry-run confirmation, etc.).
 
 If the skill is invoked outside openclaw (e.g., user runs `/autoshorts` directly in Claude Code), the same prompts work — they just appear in the terminal instead of on the phone.
+
+## Instructions
+
+1. **Verify setup** — `.env` complete, FFmpeg present, virtualenv installed. Ask the user
+   for any missing key rather than guessing.
+2. **Pick one video** from `INPUT_FOLDER`. One per run, not a batch.
+3. **Transcribe** it with Whisper at the configured model size.
+4. **Select clips** with Gemini 3 Flash against the transcript and the video itself.
+5. **Cut and overlay** each candidate with FFmpeg.
+6. **Present the candidates to the user and wait for approval.** Never publish unapproved
+   clips.
+7. **Publish the approved ones** through Upload-Post and report the per-platform result.
+8. Optionally run the weekly learning loop to feed performance back into selection.
+
+The daily workflow below is the detailed version of these steps.
 
 ## Daily workflow
 
@@ -296,6 +340,58 @@ Defaults: 7-day soak (clips younger than this are excluded), 90-day max age (old
 - Do not delete `post-history.jsonl` or `metrics.jsonl` — they're append-only memory. Without them every `learn` starts from zero.
 - Do not run `learn` more than ~once a week — Gemini will just churn the same patterns.
 
+## Output
+
+Each run produces cut clips in `OUTPUT_FOLDER` plus a candidate list the user approves from:
+
+```
+3 clips selected from interview-2026-08.mp4
+
+  1. 00:12:04 → 00:12:41  (37s)  score 92
+     hook: "Nobody tells you this about pricing"
+  2. 00:41:18 → 00:41:52  (34s)  score 87
+     hook: "I lost $50K learning this"
+```
+
+After approval, publishing reports one line per clip per platform, with the post URL when it
+succeeded and the reason when it did not. Surface failures explicitly — a clip that silently
+failed to post looks published.
+
+## Error Handling
+
+- **FFmpeg missing or failing on a cut** — check `ffmpeg -version` first. A cut that fails on
+  one clip should not abort the batch; skip it, report it, continue with the rest.
+- **Whisper out of memory** — drop `WHISPER_MODEL` to a smaller size (`small`, `base`) and
+  re-run. Long videos on `large` will exhaust memory on most laptops.
+- **Gemini returns no clips** — the source genuinely had no rankable moments. Report that
+  rather than lowering the bar and shipping filler.
+- **Upload-Post `401`** — the key was sent as `Bearer`. Use `Authorization: Apikey <key>`.
+- **A platform fails while others succeed** — normal. Report per platform and retry only the
+  failures; do not re-cut the clip.
+- **TikTok `reached_active_user_cap`** — the clip lands in the TikTok inbox as a draft rather
+  than publishing. It is waiting in the app, not live. Tell the user.
+
+## Examples
+
+**Normal daily run**
+
+```bash
+cd ~/Documents/skill-autoshorts && source venv/bin/activate
+python3 autoshorts.py daily
+```
+
+**Re-run on a specific video instead of letting it pick**
+
+```bash
+python3 autoshorts.py daily --video "/abs/path/to/interview-2026-08.mp4"
+```
+
+**Weekly learning loop**
+
+```bash
+python3 autoshorts.py learn
+```
+
 ## Operating notes
 
 - **Always confirm** before Step 4 (heavy ffmpeg work — do NOT skip, but confirm if Gemini returned > 15 candidates — could waste time), before Step 7 (publishing is irreversible once scheduled), and after Step 6 (metadata copy).
@@ -306,3 +402,10 @@ Defaults: 7-day soak (clips younger than this are excluded), 90-day max age (old
 - If `pick` says "all videos already processed", tell the user and stop — do not re-process. They need to drop a new video into `INPUT_FOLDER`.
 - The state file at `state/processed.json` is the **only** memory between runs. Never edit it programmatically except via `mark-processed`. If the user asks to "reprocess video X", the right move is to ask them to confirm, then remove the matching entry from `state/processed.json` manually.
 - The Whisper `medium` model (~1.5 GB) downloads on first transcribe call. Warn the user the first run will take longer — subsequent runs reuse the cached model.
+
+## Resources
+
+- Upload-Post API documentation: https://docs.upload-post.com
+- Dashboard: https://app.upload-post.com
+- Video format requirements per platform: https://docs.upload-post.com/api/video-requirements
+- Pipeline source: https://github.com/mutonby/skill-autoshorts

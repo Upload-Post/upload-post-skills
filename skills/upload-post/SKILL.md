@@ -1,11 +1,33 @@
 ---
 name: upload-post
-description: "Upload content to social media platforms via Upload-Post API. Use when posting videos, photos, text, or documents to TikTok, Instagram, YouTube, LinkedIn, Facebook, X (Twitter), Threads, Pinterest, Reddit, or Bluesky. Supports scheduling, analytics, FFmpeg processing, and upload history."
+description: "Publish and schedule content to 15 social platforms through one Upload-Post API call: TikTok, Instagram, YouTube, LinkedIn, Facebook, X, Threads, Pinterest, Bluesky, Reddit, Discord, Telegram, Mastodon, WordPress and Google Business Profile. Use when posting or scheduling videos, photo carousels, text or documents across several platforms at once, checking upload status, or pulling analytics."
+allowed-tools: Read, Write, Bash(curl:*), Bash(jq:*)
+version: "1.1.0"
+author: Upload-Post <support@upload-post.com>
+license: MIT
+compatibility: "Designed for Claude Code; works in any agent runtime supporting the Anthropic skill spec. Requires curl on PATH and an UPLOAD_POST_API_KEY. No local media tooling needed — uploads are server-side."
+tags:
+- social-media
+- publishing
+- scheduling
+- api
+- analytics
 ---
 
 # Upload-Post API
 
 Post content to multiple social media platforms with a single API call.
+
+## Overview
+
+One request fans out to every target platform and reports a per-platform result. Accounts are
+connected once through OAuth in the Upload-Post dashboard, so this skill never handles
+per-platform developer apps, review processes or token refresh — a single API key covers all
+15 platforms.
+
+Four content types are supported: video, photo carousels, text-only posts and documents
+(LinkedIn). Each can be published immediately, scheduled for a future date, or added to a
+posting queue.
 
 ## Documentation
 
@@ -50,6 +72,23 @@ The `user` parameter in all endpoints refers to your **profile name** (not usern
 | `/uploadposts/pinterest/boards` | GET | List Pinterest boards |
 | `/uploadposts/reddit/detailed-posts` | GET | Get Reddit posts with media |
 | `/ffmpeg` | POST | Process media with FFmpeg |
+
+## Instructions
+
+1. **Pick the endpoint** by content type — `/upload` for video, `/upload_photos` for photos
+   and carousels, `/upload_text` for text-only, `/upload_document` for LinkedIn documents.
+2. **Set `user`** to the profile name, not a social handle. The profile determines which
+   connected accounts receive the content.
+3. **Repeat `platform[]`** once per target platform.
+4. **Add a `title`.** Required for YouTube and Reddit, optional everywhere else. Override it
+   per platform with `<platform>_title` when the copy should differ.
+5. **Set `async_upload=true`** for anything but the smallest files, then poll
+   `/uploadposts/status?request_id=…` until it reaches a terminal state.
+6. **Read the per-platform result** and report which platforms published and which failed —
+   a request can partially succeed.
+
+To schedule instead of publishing now, add `scheduled_date` (ISO-8601) and optionally
+`timezone` (IANA). To let Upload-Post pick the next free slot, send `add_to_queue=true`.
 
 ## Upload Videos
 
@@ -244,7 +283,68 @@ See [references/platforms.md](references/platforms.md) for detailed platform par
 
 See [references/requirements.md](references/requirements.md) for format specs per platform.
 
-## Error Codes
+## Output
+
+An accepted upload returns a `request_id`. With `async_upload=true` the platforms are still
+processing at that point:
+
+```json
+{ "success": true, "request_id": "req_8f21c04a" }
+```
+
+Polling `/uploadposts/status?request_id=…` returns the per-platform outcome. Report each
+platform separately — a request can partially succeed:
+
+```json
+{
+  "status": "completed",
+  "results": {
+    "tiktok":    { "success": true,  "post_url": "https://tiktok.com/@brand/video/7412..." },
+    "instagram": { "success": true,  "post_url": "https://instagram.com/reel/C8xY2..." },
+    "youtube":   { "success": false, "error_code": "quota_exceeded" }
+  }
+}
+```
+
+A scheduled post responds `202` with a `job_id` instead, which later appears in upload history.
+
+## Examples
+
+**Publish a clip to three platforms with platform-specific captions**
+
+```bash
+curl -X POST "https://api.upload-post.com/api/upload" \
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+  -F "user=mybrand" \
+  -F "platform[]=tiktok" -F "platform[]=instagram" -F "platform[]=youtube" \
+  -F "video=@clip.mp4" \
+  -F "title=How to build better habits" \
+  -F "tiktok_title=the 1 habit that changed everything 🔥 #fyp" \
+  -F "youtube_title=How To Build Better Habits (5 Minute Guide)" \
+  -F "async_upload=true"
+```
+
+**Schedule a carousel for next Monday, Madrid time**
+
+```bash
+curl -X POST "https://api.upload-post.com/api/upload_photos" \
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+  -F "user=mybrand" -F "platform[]=instagram" \
+  -F "photos[]=@slide1.jpg" -F "photos[]=@slide2.jpg" \
+  -F "title=Five lessons from year one" \
+  -F "scheduled_date=2026-09-01T09:00:00Z" -F "timezone=Europe/Madrid"
+```
+
+**Retry only the platforms that failed**
+
+```bash
+curl -X POST "https://api.upload-post.com/api/upload" \
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+  -F "user=mybrand" -F "video=@clip.mp4" -F "title=..." \
+  -F "retry_request_id=req_8f21c04a"
+```
+
+## Error Handling
 
 | Code | Meaning |
 |------|---------|
@@ -254,9 +354,37 @@ See [references/requirements.md](references/requirements.md) for format specs pe
 | 429 | Rate limit / quota exceeded |
 | 500 | Server error |
 
+The failure modes that actually bite:
+
+- **`401 Invalid or expired token` with a key you know is good** — the key was sent as
+  `Bearer`. API keys use the `Apikey` scheme. The message is misleading: the key is fine,
+  the scheme is wrong.
+- **Some platforms succeeded, others failed** — this is normal, not an exception. Read
+  `results` per platform and retry only the failures with `retry_request_id` instead of
+  re-uploading everything.
+- **The request timed out** — uploads longer than 59 seconds switch to async automatically.
+  Do not treat a timeout as a failure; poll `/uploadposts/status` with the `request_id`.
+- **`reached_active_user_cap` on TikTok** — TikTok's daily cap was hit. By default the video
+  falls back to the TikTok inbox as a draft: `success` is still `true`, the result carries
+  `fallback_to_inbox: true`, and the id starts with `v_inbox_file`. The video is waiting in
+  the app, not live.
+- **Missing title on YouTube or Reddit** — both reject the upload; every other platform
+  accepts an empty title.
+- **Duplicate posts after a retry** — send an `Idempotency-Key` header. A retried request
+  with a matching key returns the existing job rather than publishing twice.
+
 ## Notes
 
 - Videos auto-switch to async if >59s processing time
 - X long text creates threads unless `x_long_text_as_post=true`
 - Facebook requires Page ID (personal profiles not supported by Meta)
 - Instagram/Threads support mixed carousels (photos + videos)
+
+## Resources
+
+- API documentation: https://docs.upload-post.com
+- LLM-friendly dump: https://docs.upload-post.com/llm.txt
+- Platform-specific parameters: [references/platforms.md](references/platforms.md)
+- Media format requirements: [references/requirements.md](references/requirements.md)
+- Dashboard and API keys: https://upload-post.com
+- MCP connector: https://mcp.upload-post.com/mcp

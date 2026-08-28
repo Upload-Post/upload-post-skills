@@ -2,11 +2,39 @@
 name: viraloop
 description: OpenClaw AI agent skill for automated TikTok and Instagram carousel growth. Analyzes any website URL to extract brand, competitors, value proposition, then generates viral slides with auto-publishing and trending music via upload-post API. Built-in analytics feedback loop.
 metadata: {"clawdbot":{"emoji":"🔄","requires":{"env":["GEMINI_API_KEY","UPLOADPOST_TOKEN"],"bins":["node","jq","uv"]}}}
+allowed-tools: Read, Write, Edit, Glob, Bash(node:*), Bash(python3:*), Bash(curl:*)
+version: "1.0.0"
+author: Upload-Post <support@upload-post.com>
+license: MIT
+compatibility: "Designed for Claude Code; requires Node.js and Python 3 on PATH plus GEMINI_API_KEY and UPLOADPOST_TOKEN. Publishes carousels to TikTok and Instagram."
+tags:
+- carousels
+- tiktok
+- instagram
+- growth
+- automation
 ---
 
 # Viraloop
 
 Analyze any website and generate a 6-slide carousel for TikTok/Instagram with visual coherence. Posts directly to your feed (no drafts) with auto trending music. Both APIs (Gemini + upload-post.com) have free plans — no credit card needed to start.
+
+## Overview
+
+Turn any URL into a 6-slide carousel for TikTok and Instagram, publish it straight to the
+feed with trending audio, then read the analytics and feed what worked back into the next
+run. The loop is the point: each day's hooks are chosen against what actually performed
+yesterday, not against a fixed template.
+
+Six stages: research the site, generate hook variants, render slides, review them with
+vision, publish, then learn from the numbers.
+
+## Prerequisites
+
+- Node.js and Python 3 on PATH
+- `GEMINI_API_KEY` for research, hooks and image generation
+- `UPLOADPOST_TOKEN` plus a profile with TikTok and Instagram connected
+- Both APIs have free tiers — no card needed to start
 
 ## Philosophy: Daily Iteration Loop
 
@@ -59,6 +87,16 @@ UPLOADPOST_TOKEN="your-token" bash {baseDir}/scripts/check-analytics.sh 7
 # 8. Learn from data for next carousels
 node {baseDir}/scripts/learn-from-analytics.js
 ```
+
+## Instructions
+
+1. **Research the site** with `analyze-web.js` to extract the business, audience and angles.
+2. **Generate three hook variants** — SHOCK, CURIOSITY, CONTRADICTION — and review them.
+3. **Pick one hook type** and generate the six slides against it.
+4. **Review the slides with vision.** Check the text is legible and not clipped before
+   anything is published; a broken slide is worse than no post.
+5. **Publish to TikTok and Instagram** with `publish-carousel.sh`.
+6. **Read analytics** after a day and run the learning step so the next batch is informed.
 
 ## Hook Categories (Visual Novelty System)
 
@@ -279,6 +317,50 @@ UPLOADPOST_TOKEN="..." UPLOADPOST_USER="myuser" bash {baseDir}/scripts/check-ana
 node {baseDir}/scripts/learn-from-analytics.js
 ```
 
+## Output
+
+Each run leaves six rendered slides plus a metadata file in the working directory, and the
+publish step returns a per-platform result:
+
+```
+Carousel published
+  tiktok     ✅  https://tiktok.com/@brand/photo/7412...
+  instagram  ✅  https://instagram.com/p/C8xY2...
+```
+
+The analytics step returns views, likes and saves per slide set, which the learning step
+consumes to rank hook types. Report which hook type won — that is the output that compounds.
+
+## Error Handling
+
+- **Gemini quota exhausted** — the free tier is per-minute as well as per-day. Back off and
+  retry rather than dropping to a worse model mid-batch.
+- **Slide text clipped or unreadable** — caught in the vision review step, which exists
+  precisely for this. Regenerate the slide; do not publish it.
+- **Upload-Post `401`** — the token was sent as `Bearer`. Use `Authorization: Apikey <token>`.
+- **Instagram rejects the carousel** — the account must be Business or Creator and linked to
+  a Facebook Page. Personal accounts cannot publish through the API.
+- **One platform fails, the other succeeds** — expected. Report both and retry only the
+  failure.
+
+## Examples
+
+**Full daily run against a site**
+
+```bash
+node scripts/analyze-web.js https://example.com
+GEMINI_API_KEY="..." bash scripts/generate-hooks.sh
+GEMINI_API_KEY="..." bash scripts/generate-slides.sh curiosity
+bash scripts/publish-carousel.sh
+```
+
+**Check yesterday's numbers and learn from them**
+
+```bash
+bash scripts/check-analytics.sh
+node scripts/learn-from-analytics.js
+```
+
 ## Files
 
 ```
@@ -338,3 +420,10 @@ node {baseDir}/scripts/learn-from-analytics.js
 - Check analytics after 24-48h for meaningful data
 - Learnings accumulate and improve with each published carousel
 - TikTok title max 90 characters (auto-truncated with hashtags)
+
+## Resources
+
+- Upload-Post API documentation: https://docs.upload-post.com
+- Photo and carousel requirements: https://docs.upload-post.com/api/photo-requirements
+- Gemini API keys: https://aistudio.google.com/apikey
+- Dashboard: https://upload-post.com

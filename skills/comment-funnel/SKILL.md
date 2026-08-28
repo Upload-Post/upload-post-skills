@@ -5,6 +5,16 @@ version: "1.0.0"
 metadata:
   author: "Upload-Post"
   last-updated: "2026-03-28"
+allowed-tools: Read, Write, Bash(curl:*), Bash(jq:*)
+author: Upload-Post <support@upload-post.com>
+license: MIT
+compatibility: "Designed for Claude Code; requires curl on PATH and an UPLOAD_POST_API_KEY with an Instagram account connected. Instagram only — the comment-to-DM API is not available on other platforms."
+tags:
+- instagram
+- dm-automation
+- lead-generation
+- funnels
+- social-media
 ---
 
 # Comment-to-DM Funnel — Upload-Post API
@@ -12,6 +22,25 @@ metadata:
 Turn Instagram comments into conversations. This skill lets you monitor comments on a post, detect trigger keywords (semantically, not just exact match), and send personalized private DMs to each commenter automatically.
 
 This is the same mechanism ManyChat, Inro, and every major DM automation tool uses — the official Instagram Private Replies API. Fully compliant with Meta's terms.
+
+## Overview
+
+Monitor an Instagram post for comments, detect trigger keywords semantically (not just exact
+string matches), and send each commenter a personalized private DM. This is the official
+Instagram Private Replies API — the same mechanism ManyChat and Inro use — so it stays inside
+Meta's terms.
+
+The funnel has three moving parts: a **monitor** watching one post, a **trigger** matching
+comment text, and a **DM template** that gets personalized per commenter. Replies to the DM
+keep the conversation open for 24 hours under Meta's messaging window.
+
+## Prerequisites
+
+- An Upload-Post account with an **Instagram Business or Creator account** connected
+  (personal Instagram accounts cannot receive the Private Replies permission from Meta)
+- `UPLOAD_POST_API_KEY` in the environment
+- The profile name that owns the connected Instagram account
+- The post ID or URL of the Instagram post to monitor
 
 ## Documentation
 
@@ -215,6 +244,20 @@ curl -X POST "https://api.upload-post.com/api/uploadposts/dms/send" \
 
 **24-hour window**: You can only send follow-up DMs within 24 hours of the user's last reply. After that, the window closes and you cannot message them until they message you again.
 
+## Instructions
+
+1. **Confirm the account is eligible** — Instagram Business or Creator, connected in the
+   dashboard. Private Replies is unavailable on personal accounts.
+2. **Pick the post** to monitor and get its ID.
+3. **Define the trigger** — the keyword or intent to match. Matching is semantic, so
+   "GUIDE", "quiero la guía" and "send me the guide" all hit the same trigger.
+4. **Write the DM template**, including any personalization tokens.
+5. **Create the monitor** through the AutoDM endpoint and confirm it is active.
+6. **Check the logs** periodically to see who was messaged and what failed.
+
+Read the compliance rules below before going live — Meta enforces a 24-hour messaging window
+and one private reply per comment.
+
 ## Building the Funnel — Step by Step
 
 When the user asks you to set up a comment funnel, follow these steps:
@@ -343,7 +386,9 @@ These are Meta's rules. Breaking them gets the account restricted, not just rate
 
 When you hit a 429, **stop the entire batch**. Don't keep trying. Report to the user: "Sent X DMs successfully. Hit the rate limit — the remaining Y commenters will need to be processed later."
 
-## Example Conversation
+## Examples
+
+### Example Conversation
 
 **User**: "In my latest Reel I told people to comment CURSO to get info about my course. Set up the funnel to DM them the enrollment link https://mycourse.com/enroll"
 
@@ -353,6 +398,31 @@ When you hit a 429, **stop the entire batch**. Don't keep trying. Report to the 
 3. Analyze each comment for intent to receive the course info
 4. For each match: `POST /uploadposts/comments/reply` with personalized DM
 5. Report: "Found 47 comments. 31 matched the trigger. Sent 31 DMs. 2 had already been replied to. Here's the breakdown..."
+
+## Output
+
+Creating a monitor returns its id and state:
+
+```json
+{ "success": true, "monitor_id": "adm_4f19", "status": "active", "post_id": "17998..." }
+```
+
+The DM log reports one row per commenter handled — who was messaged, when, and why a send
+failed when it did:
+
+```json
+{
+  "sent": [
+    { "username": "someone", "comment": "GUIDE", "status": "sent", "sent_at": "2026-08-29T10:02:11Z" }
+  ],
+  "skipped": [
+    { "username": "otheruser", "reason": "outside_24h_window" }
+  ]
+}
+```
+
+Report both lists back — a funnel that silently skips people looks like it is working when
+it is not.
 
 ## Platform Limitation
 
@@ -367,3 +437,11 @@ This is not a limitation of Upload-Post — it's how the social platform APIs wo
 - **One clear CTA**: Don't overload the DM. One link, one action.
 - **Timing matters**: The sooner after commenting they get the DM, the higher the open rate. Process comments as soon as the rate limit allows.
 - **Track what works**: Compare DM response rates across different message styles. Iterate.
+
+## Resources
+
+- API documentation: https://docs.upload-post.com
+- LLM-friendly dump: https://docs.upload-post.com/llm.txt
+- Compliance notes: [references/compliance.md](references/compliance.md)
+- Meta Private Replies policy: https://developers.facebook.com/docs/messenger-platform/instagram/features/private-replies
+- Dashboard: https://upload-post.com
