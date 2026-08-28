@@ -8,25 +8,46 @@ This repository bundles every official Upload-Post skill in a single place. Each
 
 | # | Skill | What it teaches Claude to do | When to use it |
 |---|---|---|---|
-| 1 | **[larry-marketing](./larry-marketing/)** | Run a complete TikTok / Instagram slideshow marketing pipeline based on the Larry methodology — competitor research, AI image generation, text overlays, multi-platform posting, analytics tracking, and a closed-loop hook/CTA optimizer | Marketing an app or product on TikTok + Instagram; needs measurable growth, not one-off posts |
-| 2 | **[comment-funnel](./comment-funnel/)** | Turn Instagram comments into private DM leads — monitors a post for keyword triggers and sends personalized DMs to convert engagement into pipeline | Lead-gen funnels, lead magnets, "comment INFO to get the PDF" workflows |
-| 3 | **[viraloop](./viraloop/)** | Convert any URL into a 6-slide carousel for TikTok + Instagram with visual coherence, auto-trending music, and a built-in analytics feedback loop | Repurposing a blog post, landing page or product page into a viral-shaped carousel without manual design work |
-| 4 | **[autoshorts](./autoshorts/)** | A daily pipeline that finds every viral short-form moment in a long video (Whisper transcription + Gemini multimodal selection), cuts each one with FFmpeg, overlays a hook, and publishes the approved clips to TikTok / Reels / Shorts | Content repurposing from podcasts, interviews, livestreams or long-form videos into a steady stream of shorts |
-| 5 | **[upload-post](./upload-post/)** | Foundational knowledge of the Upload-Post API surface — endpoints, profile model, scheduling semantics, platform-specific overrides | Lower-level integration when the higher-level skills above don't cover the use case; mostly automatic when paired with the Upload-Post MCP connector |
+| 1 | **[larry-marketing](./skills/larry-marketing/)** | Run a complete TikTok / Instagram slideshow marketing pipeline based on the Larry methodology — competitor research, AI image generation, text overlays, multi-platform posting, analytics tracking, and a closed-loop hook/CTA optimizer | Marketing an app or product on TikTok + Instagram; needs measurable growth, not one-off posts |
+| 2 | **[comment-funnel](./skills/comment-funnel/)** | Turn Instagram comments into private DM leads — monitors a post for keyword triggers and sends personalized DMs to convert engagement into pipeline | Lead-gen funnels, lead magnets, "comment INFO to get the PDF" workflows |
+| 3 | **[viraloop](./skills/viraloop/)** | Convert any URL into a 6-slide carousel for TikTok + Instagram with visual coherence, auto-trending music, and a built-in analytics feedback loop | Repurposing a blog post, landing page or product page into a viral-shaped carousel without manual design work |
+| 4 | **[autoshorts](./skills/autoshorts/)** | A daily pipeline that finds every viral short-form moment in a long video (Whisper transcription + Gemini multimodal selection), cuts each one with FFmpeg, overlays a hook, and publishes the approved clips to TikTok / Reels / Shorts | Content repurposing from podcasts, interviews, livestreams or long-form videos into a steady stream of shorts |
+| 5 | **[upload-post](./skills/upload-post/)** | Foundational knowledge of the Upload-Post API surface — endpoints, profile model, scheduling semantics, platform-specific overrides | Lower-level integration when the higher-level skills above don't cover the use case; mostly automatic when paired with the Upload-Post MCP connector |
 
 ## How to install
 
-### Claude Code
+This repo is packaged as a **plugin** for both Codex and Claude Code (manifests in `.codex-plugin/` and `.claude-plugin/`), and the five skills live under `skills/`. Pick the path for your agent.
+
+### OpenAI Codex (plugin)
+
+The repo ships a marketplace manifest at `.agents/plugins/marketplace.json`. Add it as a marketplace, then install the `upload-post` plugin. The plugin bundles all five skills plus the Upload-Post MCP server (`.mcp.json`), so Codex gets the tools and the workflows in one install.
 
 ```bash
-git clone https://github.com/Upload-Post/upload-post-skills ~/.claude/skills/upload-post-skills
+git clone https://github.com/Upload-Post/upload-post-skills
+# point Codex at the bundled marketplace at the repo root (.agents/plugins/marketplace.json)
 ```
 
-Restart Claude Code. Each subdirectory becomes a separately discoverable skill — Claude picks the right one based on the conversation.
+(Public Codex Plugin Directory publishing is rolling out — until then, install from the repo or share within your workspace.)
 
-### Cursor / Windsurf / OpenClaw / any MCP-compatible agent
+### Claude Code (plugin)
 
-Same `git clone` into whatever directory your agent treats as its skills root. The folder name doesn't matter — Claude reads each skill's frontmatter to decide when to activate it.
+```bash
+git clone https://github.com/Upload-Post/upload-post-skills
+/plugin install ./upload-post-skills
+```
+
+Claude Code reads `.claude-plugin/plugin.json`, auto-discovers every skill under `skills/`, and wires up the MCP connector from `.mcp.json`.
+
+### Manual / Cursor / Windsurf / OpenClaw / any skills-compatible agent
+
+The skills follow the open [Agent Skills standard](https://agentskills.io), so they work in any compatible client. Copy the skill folders into whatever directory your agent treats as its skills root:
+
+```bash
+git clone https://github.com/Upload-Post/upload-post-skills
+cp -r upload-post-skills/skills/* ~/.claude/skills/   # or your agent's skills dir
+```
+
+Each folder under `skills/` is a separately discoverable skill — the agent reads each `SKILL.md` frontmatter to decide when to activate it.
 
 ## Pairs with the Upload-Post MCP connector
 
