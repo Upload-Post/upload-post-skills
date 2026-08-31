@@ -22,14 +22,16 @@ Paste into Claude Code, Codex, Hermes, Openclaw, or any agent with shell access:
 
 When an agent reads this section, here's the full install protocol it should follow:
 
-1. Clone or `git pull` this repo into `~/Documents/skill-autoshorts/` (or whatever path the user prefers).
-2. Make sure `ffmpeg` is installed (`brew install ffmpeg` on macOS, `apt install ffmpeg` on Linux). Verify with `ffmpeg -version`.
-3. Create the venv and install Python deps: `python3 -m venv venv && ./venv/bin/pip install -r requirements.txt`.
+1. The pipeline ships inside the skill directory (the folder holding `autoshorts.py`). All generated state -- `.env`, `venv/`, `input/`, `output/`, `state/`, `learnings/` -- stays there and is git-ignored, so `git pull` will not clobber it.
+2. Make sure `ffmpeg` is installed (`winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS, `apt install ffmpeg` on Linux). Verify with `ffmpeg -version`.
+3. Create the venv and install Python deps, from the skill directory:
+   - Windows: `python -m venv venv` then `venv/Scripts/python.exe -m pip install -r requirements.txt`
+   - macOS / Linux: `python3 -m venv venv && ./venv/bin/pip install -r requirements.txt`
 4. Register `SKILL.md` with whichever agent harness is running. For Claude Code, copy or symlink it into `~/.claude/skills/autoshorts/SKILL.md`. For Hermes / Openclaw follow their skill registration docs.
 5. Create `.env` from `.env.example` and ask the user to paste the values you need:
    - `GEMINI_API_KEY` — https://aistudio.google.com/apikey (free tier is enough).
    - `UPLOAD_POST_API_KEY` and `UPLOAD_POST_PROFILE` — https://app.upload-post.com → Settings → API Keys + Manage Users (free tier available, no credit card required).
-   - Default `INPUT_FOLDER` and `OUTPUT_FOLDER` to `~/Documents/skill-autoshorts/input` and `.../output` unless the user says otherwise. Default `WHISPER_MODEL=medium` and `TIMEZONE=Europe/Madrid` (override if the user is in another timezone).
+   - Leave `INPUT_FOLDER` and `OUTPUT_FOLDER` blank to use `input/` and `output/` inside the skill directory; set them only if the user wants another location (on Windows, write them with forward slashes: `C:/Users/you/Videos/longform`). Default `WHISPER_MODEL=medium` and `TIMEZONE=Europe/Madrid` (override if the user is in another timezone).
 6. Verify the Upload-Post key works: `curl -s -H "Authorization: Apikey $UPLOAD_POST_API_KEY" https://api.upload-post.com/api/uploadposts/users` should return the user's profile and connected platforms. Surface any platform with `reauth_required: true` so the user can fix it before the first publish.
 7. Read `SKILL.md` end-to-end. That's the canonical daily workflow — visual QA, weekly `learn`, all the operational rules.
 
@@ -94,9 +96,11 @@ For invocation, the harness either fires `/autoshorts` on its daily cron, or inv
 
 ### As a standalone CLI
 
-```bash
-source venv/bin/activate
+Invoke the venv interpreter by path -- `venv/Scripts/python.exe` on Windows,
+`venv/bin/python` on macOS/Linux. The examples below use `python` as shorthand for
+whichever of those applies.
 
+```bash
 # 1. Pick the next unprocessed video
 python autoshorts.py pick
 
