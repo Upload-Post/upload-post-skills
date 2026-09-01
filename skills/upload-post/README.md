@@ -33,6 +33,11 @@ A skill for AI agents (Claude Code, Clawdbot, etc.) to upload content to social 
 npx skills add Upload-Post/upload-post-skill
 ```
 
+### For OpenClaw / ClawHub
+```bash
+openclaw skills install upload-post
+```
+
 ### Manual Installation
 Copy `SKILL.md` and `references/` to your agent's skills directory.
 
@@ -42,6 +47,10 @@ Copy `SKILL.md` and `references/` to your agent's skills directory.
 2. Connect your social media accounts
 3. Create a **Profile** (links your connected accounts)
 4. Generate an **API Key** from dashboard
+5. Expose the key to the agent as `UPLOAD_POST_API_KEY` (and optionally the profile name as
+   `UPLOAD_POST_PROFILE`). On OpenClaw, set them in `~/.openclaw/openclaw.json` under
+   `skills.entries.upload-post` (`apiKey` + `env`) — the skill stays ineligible until the key
+   is present. See the *Configuration* section of `SKILL.md`.
 
 ## Usage
 

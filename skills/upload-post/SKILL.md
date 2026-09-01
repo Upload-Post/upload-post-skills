@@ -2,16 +2,17 @@
 name: upload-post
 description: "Publish and schedule content to 15 social platforms through one Upload-Post API call: TikTok, Instagram, YouTube, LinkedIn, Facebook, X, Threads, Pinterest, Bluesky, Reddit, Discord, Telegram, Mastodon, WordPress and Google Business Profile. Use when posting or scheduling videos, photo carousels, text or documents across several platforms at once, checking upload status, or pulling analytics."
 allowed-tools: Read, Write, Bash(curl:*), Bash(jq:*)
-version: "1.1.0"
+version: "1.2.0"
 author: Upload-Post <support@upload-post.com>
 license: MIT
-compatibility: "Designed for Claude Code; works in any agent runtime supporting the Anthropic skill spec. Requires curl on PATH and an UPLOAD_POST_API_KEY. No local media tooling needed — uploads are server-side."
+compatibility: "Works in Claude Code, OpenClaw and any agent runtime supporting the Agent Skills spec. Requires curl on PATH and the UPLOAD_POST_API_KEY environment variable (optionally UPLOAD_POST_PROFILE). No local media tooling needed — uploads are server-side."
 tags:
 - social-media
 - publishing
 - scheduling
 - api
 - analytics
+metadata: {"openclaw":{"emoji":"📤","homepage":"https://upload-post.com","requires":{"bins":["curl"],"env":["UPLOAD_POST_API_KEY"]},"primaryEnv":"UPLOAD_POST_API_KEY"}}
 ---
 
 # Upload-Post API
@@ -42,10 +43,52 @@ posting queue.
 4. Generate an **API Key** from dashboard
 5. Use the profile name as `user` parameter in API calls
 
+## Configuration
+
+The skill reads two environment variables. Nothing else needs to be installed or wired up:
+the OAuth for every platform already happened in the dashboard.
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `UPLOAD_POST_API_KEY` | yes | API key from the dashboard. Sent as `Authorization: Apikey $UPLOAD_POST_API_KEY`. |
+| `UPLOAD_POST_PROFILE` | no | Default profile name for the `user` parameter, so it is not repeated on every request. |
+
+Export them in the shell that runs the agent:
+
+```bash
+export UPLOAD_POST_API_KEY="..."
+export UPLOAD_POST_PROFILE="mybrand"
+```
+
+On **OpenClaw / ClawHub** the skill is gated on `UPLOAD_POST_API_KEY`: until the key is set it
+shows as ineligible in `openclaw skills list`. Put it in `~/.openclaw/openclaw.json` so it is
+injected only for this skill (`apiKey` maps to `UPLOAD_POST_API_KEY`):
+
+```json5
+{
+  skills: {
+    entries: {
+      "upload-post": {
+        enabled: true,
+        apiKey: "YOUR_UPLOAD_POST_API_KEY",
+        env: { UPLOAD_POST_PROFILE: "mybrand" },
+      },
+    },
+  },
+}
+```
+
+Then confirm the key is accepted before posting anything:
+
+```bash
+curl -s "https://api.upload-post.com/api/uploadposts/me" \
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY"
+```
+
 ## Authentication
 
 ```
-Authorization: Apikey YOUR_API_KEY
+Authorization: Apikey $UPLOAD_POST_API_KEY
 ```
 
 Base URL: `https://api.upload-post.com/api`
@@ -77,7 +120,7 @@ The `user` parameter in all endpoints refers to your **profile name** (not usern
 
 1. **Pick the endpoint** by content type — `/upload` for video, `/upload_photos` for photos
    and carousels, `/upload_text` for text-only, `/upload_document` for LinkedIn documents.
-2. **Set `user`** to the profile name, not a social handle. The profile determines which
+2. **Set `user`** to the profile name (`$UPLOAD_POST_PROFILE` when set), not a social handle. The profile determines which
    connected accounts receive the content.
 3. **Repeat `platform[]`** once per target platform.
 4. **Add a `title`.** Required for YouTube and Reddit, optional everywhere else. Override it
@@ -94,7 +137,7 @@ To schedule instead of publishing now, add `scheduled_date` (ISO-8601) and optio
 
 ```bash
 curl -X POST "https://api.upload-post.com/api/upload" \
-  -H "Authorization: Apikey YOUR_KEY" \
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
   -F "user=profile_name" \
   -F "platform[]=instagram" \
   -F "platform[]=tiktok" \
@@ -117,7 +160,7 @@ Key parameters:
 
 ```bash
 curl -X POST "https://api.upload-post.com/api/upload_photos" \
-  -H "Authorization: Apikey YOUR_KEY" \
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
   -F "user=profile_name" \
   -F "platform[]=instagram" \
   -F "photos[]=@photo1.jpg" \
@@ -131,7 +174,7 @@ Instagram & Threads support mixed carousels (photos + videos in same post).
 
 ```bash
 curl -X POST "https://api.upload-post.com/api/upload_text" \
-  -H "Authorization: Apikey YOUR_KEY" \
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "user": "profile_name",
@@ -148,7 +191,7 @@ Upload PDFs, PPTs, DOCs as native LinkedIn document posts (carousel viewer).
 
 ```bash
 curl -X POST "https://api.upload-post.com/api/upload_document" \
-  -H "Authorization: Apikey YOUR_KEY" \
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
   -F "user=profile_name" \
   -F 'platform[]=linkedin' \
   -F "document=@presentation.pdf" \
@@ -182,7 +225,7 @@ Parameters:
 
 ```bash
 curl "https://api.upload-post.com/api/uploadposts/history?page=1&limit=20" \
-  -H "Authorization: Apikey YOUR_KEY"
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY"
 ```
 
 Parameters:
@@ -213,7 +256,7 @@ For async uploads or scheduled posts:
 
 ```bash
 curl "https://api.upload-post.com/api/uploadposts/status?request_id=XXX" \
-  -H "Authorization: Apikey YOUR_KEY"
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY"
 ```
 
 Or use `job_id` for scheduled posts.
@@ -222,7 +265,7 @@ Or use `job_id` for scheduled posts.
 
 ```bash
 curl "https://api.upload-post.com/api/analytics/profile_name?platforms=instagram,tiktok" \
-  -H "Authorization: Apikey YOUR_KEY"
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY"
 ```
 
 Supported: Instagram, TikTok, LinkedIn, Facebook, X, YouTube, Threads, Pinterest, Reddit, Bluesky.
@@ -234,15 +277,15 @@ Returns: followers, impressions, reach, profile views, time-series data.
 ```bash
 # Facebook Pages
 curl "https://api.upload-post.com/api/uploadposts/facebook/pages" \
-  -H "Authorization: Apikey YOUR_KEY"
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY"
 
 # LinkedIn Pages  
 curl "https://api.upload-post.com/api/uploadposts/linkedin/pages" \
-  -H "Authorization: Apikey YOUR_KEY"
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY"
 
 # Pinterest Boards
 curl "https://api.upload-post.com/api/uploadposts/pinterest/boards" \
-  -H "Authorization: Apikey YOUR_KEY"
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY"
 ```
 
 ## Reddit Detailed Posts
@@ -251,7 +294,7 @@ Get posts with full media info (images, galleries, videos):
 
 ```bash
 curl "https://api.upload-post.com/api/uploadposts/reddit/detailed-posts?profile_username=myprofile" \
-  -H "Authorization: Apikey YOUR_KEY"
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY"
 ```
 
 Returns up to 2000 posts with media URLs, dimensions, thumbnails.
@@ -262,7 +305,7 @@ Process media with custom FFmpeg commands:
 
 ```bash
 curl -X POST "https://api.upload-post.com/api/ffmpeg" \
-  -H "Authorization: Apikey YOUR_KEY" \
+  -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
   -F "file=@input.mp4" \
   -F "full_command=ffmpeg -y -i {input} -c:v libx264 -crf 23 {output}" \
   -F "output_extension=mp4"
