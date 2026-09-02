@@ -13,20 +13,26 @@ UPLOADPOST_URL="https://api.upload-post.com"
 UPLOADPOST_TOKEN="${UPLOADPOST_TOKEN:?Error: UPLOADPOST_TOKEN is not set}"
 DEFAULT_USER="${UPLOADPOST_USER:?Error: UPLOADPOST_USER is not set}"
 
-# Verify slides
-SLIDES=""
+# Publishing publicly is opt-in. Default to a private post so an unattended or
+# accidental run can never put content on a public feed.
+PRIVACY_LEVEL="${PRIVACY_LEVEL:-SELF_ONLY}"
+CONFIRM_PUBLIC="${CONFIRM_PUBLIC:-}"
+
+# Verify slides. An array, not a space-joined string, so a path with spaces
+# cannot split into two arguments.
+SLIDE_FILES=()
 for i in 1 2 3 4 5 6; do
     if [ -f "$CAROUSEL_DIR/slide-$i.jpg" ]; then
-        SLIDES="$SLIDES $CAROUSEL_DIR/slide-$i.jpg"
+        SLIDE_FILES+=("$CAROUSEL_DIR/slide-$i.jpg")
     fi
 done
 
-if [ -z "$SLIDES" ]; then
+if [ ${#SLIDE_FILES[@]} -eq 0 ]; then
     echo "❌ No slides found in $CAROUSEL_DIR/"
     exit 1
 fi
 
-SLIDE_COUNT=$(echo $SLIDES | wc -w)
+SLIDE_COUNT=${#SLIDE_FILES[@]}
 echo "═══════════════════════════════════════════════════════════════"
 echo "📤 PUBLISHING CAROUSEL TO TIKTOK + INSTAGRAM"
 echo "═══════════════════════════════════════════════════════════════"
@@ -61,31 +67,46 @@ if [ -f "$ANALYSIS_FILE" ]; then
 fi
 
 # Build curl command per documentation
+# A public post is irreversible for practical purposes, so require an explicit
+# opt-in rather than trusting the caller to have read the default.
+if [ "$PRIVACY_LEVEL" = "PUBLIC_TO_EVERYONE" ] && [ "$CONFIRM_PUBLIC" != "yes" ]; then
+    echo "❌ Refusing to publish publicly without confirmation."
+    echo "   This would post to the live TikTok and Instagram feeds of '$DEFAULT_USER'."
+    echo "   Re-run with CONFIRM_PUBLIC=yes to go ahead, or leave PRIVACY_LEVEL unset"
+    echo "   to publish privately (SELF_ONLY)."
+    exit 1
+fi
+
 echo "🚀 Sending to Upload-Post API..."
 echo "   🎵 auto_add_music: enabled"
-echo "   🌍 privacy_level: PUBLIC_TO_EVERYONE"
+echo "   🌍 privacy_level: $PRIVACY_LEVEL"
 echo ""
 
-# Create command
-CMD="curl -s -X POST '$UPLOADPOST_URL/api/upload_photos'"
-CMD="$CMD -H 'Authorization: Apikey $UPLOADPOST_TOKEN'"
-CMD="$CMD -F 'user=$DEFAULT_USER'"
-CMD="$CMD -F 'platform[]=tiktok'"
-CMD="$CMD -F 'platform[]=instagram'"
-CMD="$CMD -F 'title=$CAPTION_TRUNCATED'"
-CMD="$CMD -F 'tiktok_title=$TIKTOK_TITLE'"
-CMD="$CMD -F 'auto_add_music=true'"
-CMD="$CMD -F 'privacy_level=PUBLIC_TO_EVERYONE'"
-CMD="$CMD -F 'media_type=IMAGE'"
-CMD="$CMD -F 'async_upload=true'"
+# Build the request as an argument array. Never assemble a shell string and
+# eval it: the caption is generated from an arbitrary analysed website, so a
+# quote in that text would break out of the quoting and run as a command — with
+# the API token in scope.
+CURL_ARGS=(
+    -s -X POST "$UPLOADPOST_URL/api/upload_photos"
+    -H "Authorization: Apikey $UPLOADPOST_TOKEN"
+    -F "user=$DEFAULT_USER"
+    -F "platform[]=tiktok"
+    -F "platform[]=instagram"
+    -F "title=$CAPTION_TRUNCATED"
+    -F "tiktok_title=$TIKTOK_TITLE"
+    -F "auto_add_music=true"
+    -F "privacy_level=$PRIVACY_LEVEL"
+    -F "media_type=IMAGE"
+    -F "async_upload=true"
+)
 
 # Add photos
-for slide in $SLIDES; do
-    CMD="$CMD -F 'photos[]=@$slide'"
+for slide in "${SLIDE_FILES[@]}"; do
+    CURL_ARGS+=(-F "photos[]=@$slide")
 done
 
 # Execute
-RESPONSE=$(eval $CMD)
+RESPONSE=$(curl "${CURL_ARGS[@]}")
 
 echo "📨 API Response:"
 echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"

@@ -331,6 +331,19 @@ Carousel published
 The analytics step returns views, likes and saves per slide set, which the learning step
 consumes to rank hook types. Report which hook type won — that is the output that compounds.
 
+## Security
+
+- **Publishing is private by default.** `publish-carousel.sh` posts with
+  `privacy_level=SELF_ONLY` unless you set `PRIVACY_LEVEL=PUBLIC_TO_EVERYONE`
+  **and** `CONFIRM_PUBLIC=yes`. An unattended or accidental run cannot put
+  content on a public feed.
+- **Captions are never evaluated by the shell.** The caption is generated from
+  an arbitrary analysed website, so it is untrusted input; the request is built
+  as a curl argument array rather than a shell string.
+- **Credentials are never printed.** Scripts report `[set]`, never any part of a
+  token value — these run under cron and the output lands in a log file.
+- Point `VIRALOOP_ENV_FILE` at your env file; it is sourced, not word-split.
+
 ## Error Handling
 
 - **Gemini quota exhausted** — the free tier is per-minute as well as per-day. Back off and

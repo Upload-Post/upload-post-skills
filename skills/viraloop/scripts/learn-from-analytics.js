@@ -18,7 +18,10 @@ const path = require('path');
 const SKILL_DIR = path.dirname(__dirname);
 const LEARNINGS_FILE = path.join(SKILL_DIR, 'learnings.json');
 const HOOK_LEDGER_FILE = path.join(SKILL_DIR, 'hook-ledger.json');
-const PERFORMANCE_FILE = '/home/node/clawd/tiktok-marketing/hook-performance.json';
+// Overridable with HOOK_PERFORMANCE_FILE; defaults inside the skill rather than
+// a hardcoded absolute path from one author's machine.
+const PERFORMANCE_FILE = process.env.HOOK_PERFORMANCE_FILE
+  || path.join(SKILL_DIR, 'hook-performance.json');
 
 // Common words to ignore when extracting patterns
 const STOP_WORDS = new Set([
