@@ -576,6 +576,23 @@ def cmd_publish(args: argparse.Namespace) -> None:
     elif args.add_to_queue:
         data.append(("add_to_queue", "true"))
 
+    # Publishing is irreversible in practice, so the confirmation is enforced here
+    # rather than left to the caller's workflow. The daily flow shows candidates to
+    # the user first; passing --confirm-public is how that approval reaches the code.
+    public_targets = [p for p in platforms if p in ("instagram", "youtube")]
+    tiktok_public = "tiktok" in platforms and args.tiktok_mode == "direct" \
+        and args.tiktok_privacy == "PUBLIC_TO_EVERYONE"
+    if (public_targets or tiktok_public) and not args.dry_run:
+        confirmed = args.confirm_public or os.getenv("AUTOSHORTS_CONFIRM_PUBLIC") == "yes"
+        if not confirmed:
+            targets = ", ".join(public_targets + (["tiktok"] if tiktok_public else []))
+            raise SystemExit(
+                f"Refusing to publish publicly to {targets} without confirmation.\n"
+                f"This posts to the live feeds of profile '{profile}'.\n"
+                "Re-run with --confirm-public once the user has approved the clip, "
+                "or use --dry-run to inspect the request first."
+            )
+
     if args.dry_run:
         print(json.dumps({
             "DRY_RUN": True,
@@ -1084,6 +1101,8 @@ def build_parser() -> argparse.ArgumentParser:
     pub.add_argument("--tiktok-privacy", default="PUBLIC_TO_EVERYONE",
                      help="PUBLIC_TO_EVERYONE | MUTUAL_FOLLOW_FRIENDS | FOLLOWER_OF_CREATOR | SELF_ONLY")
     pub.add_argument("--dry-run", action="store_true")
+    pub.add_argument("--confirm-public", action="store_true",
+                     help="required to publish to a public feed; the user must have approved the clip")
     pub.add_argument("--clip-id", type=int, default=None,
                      help="for learning loop: the id from clips.json")
     pub.add_argument("--hook-text", default=None,

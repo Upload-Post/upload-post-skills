@@ -392,6 +392,15 @@ Yesterday's batch (CURIOSITY):
 Always report installs alongside views. Views without installs mean the hook worked and the
 offer did not, and that distinction drives the next decision.
 
+## Security
+
+- **`post-to-platforms.js` requires `--confirm-public`** (or `LARRY_CONFIRM_PUBLIC=yes`)
+  before posting. It publishes to live feeds, so the approval is enforced in code rather
+  than assumed from the workflow.
+- Requests are built with `fetch` and `FormData`; no shell is involved anywhere in the
+  pipeline, so captions and hooks cannot inject commands.
+- The API key lives in `config.json`, which is gitignored. Scripts never print it.
+
 ## Error Handling
 
 - **Gemini rate limit or quota** — the free tier limits per minute as well as per day. Back

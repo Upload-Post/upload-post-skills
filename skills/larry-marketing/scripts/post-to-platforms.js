@@ -42,6 +42,18 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+// This posts to live public feeds and cannot be undone from here, so the
+// confirmation is enforced at the code boundary rather than assumed from the
+// workflow. Pass --confirm-public once the slides have been approved.
+const confirmPublic = args.includes('--confirm-public')
+  || process.env.LARRY_CONFIRM_PUBLIC === 'yes';
+if (!confirmPublic) {
+  console.error(`❌ Refusing to publish publicly to ${PLATFORMS.join(', ')} without confirmation.`);
+  console.error(`   This posts to the live feeds of profile '${PROFILE}'.`);
+  console.error('   Re-run with --confirm-public once the slides have been approved.');
+  process.exit(1);
+}
+
 (async () => {
   // Find all slide images in the directory (slide1.png through slide6.png or more)
   const slideFiles = [];

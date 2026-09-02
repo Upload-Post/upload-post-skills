@@ -357,6 +357,17 @@ After approval, publishing reports one line per clip per platform, with the post
 succeeded and the reason when it did not. Surface failures explicitly — a clip that silently
 failed to post looks published.
 
+## Security
+
+- **Publishing to a public feed requires `--confirm-public`.** The command refuses
+  otherwise. The daily flow shows every candidate to the user first; that flag is how
+  their approval reaches the code, instead of being assumed by convention.
+- Use `--dry-run` to inspect the exact request before anything is sent.
+- FFmpeg is invoked with argument lists, never a shell string, and the hook text is
+  rendered to a PNG rather than passed through ffmpeg's `drawtext` filter — so an
+  AI-written hook cannot inject a filter or a command.
+- Credentials are read from the environment and never printed.
+
 ## Error Handling
 
 - **FFmpeg missing or failing on a cut** — check `ffmpeg -version` first. A cut that fails on
