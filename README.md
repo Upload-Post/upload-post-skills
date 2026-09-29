@@ -16,7 +16,15 @@ This repository bundles every official Upload-Post skill in a single place. Each
 
 ## How to install
 
-This repo is packaged as a **plugin** for both Codex and Claude Code (manifests in `.codex-plugin/` and `.claude-plugin/`), and the five skills live under `skills/`. Pick the path for your agent.
+This repo is packaged as a **plugin** for Codex and Claude Code (manifests in `.codex-plugin/` and `.claude-plugin/`) and as a Gemini CLI extension (`gemini-extension.json`), and the five skills live under `skills/`. Pick the path for your agent.
+
+### Gemini CLI (extension)
+
+The repo root is also a Gemini CLI extension (`gemini-extension.json`). It adds the Upload-Post MCP server with OAuth sign-in and bundles the five skills:
+
+```bash
+gemini extensions install https://github.com/Upload-Post/upload-post-skills
+```
 
 ### OpenAI Codex (plugin)
 

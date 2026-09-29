@@ -1,0 +1,14 @@
+{
+  "name": "upload-post",
+  "version": "1.0.0",
+  "description": "Publish, schedule and analyze posts on TikTok, Instagram, YouTube, LinkedIn, Facebook, X, Threads, Pinterest, Bluesky and more with the official Upload-Post MCP server.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "upload-post": {
+      "httpUrl": "https://mcp.upload-post.com/mcp",
+      "oauth": {
+        "enabled": true
+      }
+    }
+  }
+}
