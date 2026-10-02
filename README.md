@@ -4,7 +4,7 @@
 
 This repository bundles every official Upload-Post skill in a single place. Each skill is a self-contained subdirectory with its own `SKILL.md`, references, and (where relevant) scripts. Drop the whole repo into your agent's skills directory and Claude will load every skill independently.
 
-## The 5 skills
+## The 6 skills
 
 | # | Skill | What it teaches Claude to do | When to use it |
 |---|---|---|---|
@@ -13,14 +13,15 @@ This repository bundles every official Upload-Post skill in a single place. Each
 | 3 | **[viraloop](./skills/viraloop/)** | Convert any URL into a 6-slide carousel for TikTok + Instagram with visual coherence, auto-trending music, and a built-in analytics feedback loop | Repurposing a blog post, landing page or product page into a viral-shaped carousel without manual design work |
 | 4 | **[autoshorts](./skills/autoshorts/)** | A daily pipeline that finds every viral short-form moment in a long video (Whisper transcription + Gemini multimodal selection), cuts each one with FFmpeg, overlays a hook, and publishes the approved clips to TikTok / Reels / Shorts | Content repurposing from podcasts, interviews, livestreams or long-form videos into a steady stream of shorts |
 | 5 | **[upload-post](./skills/upload-post/)** | Foundational knowledge of the Upload-Post API surface — endpoints, profile model, scheduling semantics, platform-specific overrides | Lower-level integration when the higher-level skills above don't cover the use case; mostly automatic when paired with the Upload-Post MCP connector |
+| 6 | **[higgsfield-to-social](./skills/higgsfield-to-social/)** | Generate an image or video with the Higgsfield CLI (Seedance, Kling, Veo, Nano Banana, Marketing Studio ads), optionally score it with the Virality Predictor, and publish or schedule it to every connected platform with the AI-generated label | Creating AI content and posting it in one flow; the agent picks the aspect ratio from the target platforms
 
 ## How to install
 
-This repo is packaged as a **plugin** for Codex and Claude Code (manifests in `.codex-plugin/` and `.claude-plugin/`) and as a Gemini CLI extension (`gemini-extension.json`), and the five skills live under `skills/`. Pick the path for your agent.
+This repo is packaged as a **plugin** for Codex and Claude Code (manifests in `.codex-plugin/` and `.claude-plugin/`) and as a Gemini CLI extension (`gemini-extension.json`), and the six skills live under `skills/`. Pick the path for your agent.
 
 ### Gemini CLI (extension)
 
-The repo root is also a Gemini CLI extension (`gemini-extension.json`). It adds the Upload-Post MCP server with OAuth sign-in and bundles the five skills:
+The repo root is also a Gemini CLI extension (`gemini-extension.json`). It adds the Upload-Post MCP server with OAuth sign-in and bundles the six skills:
 
 ```bash
 gemini extensions install https://github.com/Upload-Post/upload-post-skills
@@ -28,7 +29,7 @@ gemini extensions install https://github.com/Upload-Post/upload-post-skills
 
 ### OpenAI Codex (plugin)
 
-The repo ships a marketplace manifest at `.agents/plugins/marketplace.json`. Add it as a marketplace, then install the `upload-post` plugin. The plugin bundles all five skills plus the Upload-Post MCP server (`.mcp.json`), so Codex gets the tools and the workflows in one install.
+The repo ships a marketplace manifest at `.agents/plugins/marketplace.json`. Add it as a marketplace, then install the `upload-post` plugin. The plugin bundles all six skills plus the Upload-Post MCP server (`.mcp.json`), so Codex gets the tools and the workflows in one install.
 
 ```bash
 git clone https://github.com/Upload-Post/upload-post-skills
@@ -74,6 +75,7 @@ Do you want to grow on TikTok + Instagram with slideshow ads?            → lar
 Do you want comments on a specific post to trigger personalized DMs?     → comment-funnel
 Do you want to turn a URL into a viral 6-slide carousel?                 → viraloop
 Do you have long-form videos and want a steady stream of shorts/reels?   → autoshorts
+Do you want to generate with Higgsfield and post the result?            → higgsfield-to-social
 You're integrating the API at a lower level and need the reference?      → upload-post
 ```
 
@@ -81,7 +83,7 @@ Claude will usually choose correctly on its own — these descriptions are also 
 
 ## Compatibility
 
-All five skills work with:
+All six skills work with:
 
 - **Claude Code** (Anthropic's official CLI)
 - **Claude Desktop** (with MCP enabled)
