@@ -20,7 +20,7 @@ tags:
 
 # AutoShorts — Daily Viral Clip Pipeline
 
-Pipeline tooling lives at `~/Documents/skill-autoshorts/`. Each day this skill picks ONE long video from `INPUT_FOLDER`, extracts every viable short-form clip (Gemini 3 Flash decides), shows them to the user for approval, and publishes the approved ones via Upload-Post.
+Pipeline tooling ships with this skill: `autoshorts.py` sits next to this file, and `.env`, `input/`, `output/`, `state/` and `learnings/` live in the same directory (all git-ignored). Every path below is relative to that skill directory unless stated otherwise. Each day this skill picks ONE long video from `INPUT_FOLDER`, extracts every viable short-form clip (Gemini 3 Flash decides), shows them to the user for approval, and publishes the approved ones via Upload-Post.
 
 ## Overview
 
@@ -45,22 +45,33 @@ The setup section below walks through each of these.
 ## Setup (only if not yet configured)
 
 ### 1. Python environment
-```bash
-cd ~/Documents/skill-autoshorts && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+Run this in the skill directory (the one holding `autoshorts.py`).
+
+**Windows** (PowerShell):
+```powershell
+python -m venv venv; .\venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
+**macOS / Linux**:
+```bash
+python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
+```
+
+Afterwards, always invoke the interpreter by path — `venv/Scripts/python.exe` on Windows,
+`venv/bin/python` on macOS/Linux — rather than relying on an activated shell.
+
 ### 2. FFmpeg
-Required system binary. Verify with `ffmpeg -version`. Install with `brew install ffmpeg` if missing.
+Required system binary. Verify with `ffmpeg -version`. If missing: `winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS, `apt install ffmpeg` on Debian/Ubuntu. Reopen the shell afterwards so the new PATH is picked up.
 
 ### 3. `.env`
-File lives at `~/Documents/skill-autoshorts/.env`. Required keys:
+File lives at `.env` in the skill directory, next to `autoshorts.py`. Copy `.env.example` and fill it in. Required keys:
 
 ```
 UPLOAD_POST_API_KEY=...
 UPLOAD_POST_PROFILE=...
 GEMINI_API_KEY=...
-INPUT_FOLDER=/abs/path/to/long/videos
-OUTPUT_FOLDER=/abs/path/to/clip/output
+INPUT_FOLDER=C:/Users/you/Videos/longform
+OUTPUT_FOLDER=C:/Users/you/Videos/clips
 WHISPER_MODEL=medium
 TIMEZONE=Europe/Madrid
 ```
@@ -105,12 +116,12 @@ This skill is meant to run as a **daily infinite loop**. Every run picks ONE vid
 
 Before doing any work, check that the environment is ready and ask the user for whatever is missing:
 
-1. **venv** — does `~/Documents/skill-autoshorts/venv/bin/python` exist? If not, run setup step 1 from the Setup section. (You can do this without asking — it's mechanical.)
-2. **`ffmpeg`** in `PATH` — if missing, ask the user to `brew install ffmpeg` (do not install yourself; system-wide installs deserve confirmation).
+1. **venv** — does `venv/Scripts/python.exe` (Windows) or `venv/bin/python` (macOS/Linux) exist in the skill directory? If not, run setup step 1 from the Setup section. (You can do this without asking — it's mechanical.)
+2. **`ffmpeg`** in `PATH` — if missing, ask the user to install it (`winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS, `apt install ffmpeg` on Debian/Ubuntu). Do not install yourself; system-wide installs deserve confirmation.
 3. **`.env` file** — check that every required key is set and non-empty:
    - `GEMINI_API_KEY` → if missing, ask: *"Falta la API key de Gemini. Pégamela (la generas en https://aistudio.google.com/apikey)."*
    - `UPLOAD_POST_API_KEY` and `UPLOAD_POST_PROFILE` → if missing, ask: *"Necesito la API key de Upload-Post y el nombre del profile (Manage Users en https://app.upload-post.com)."*
-   - `INPUT_FOLDER` and `OUTPUT_FOLDER` → if missing, default to `~/Documents/skill-autoshorts/input` and `~/Documents/skill-autoshorts/output` and write them to `.env`.
+   - `INPUT_FOLDER` and `OUTPUT_FOLDER` → if missing or blank, the script falls back to `input/` and `output/` inside the skill directory. Only write explicit values to `.env` if the user wants them elsewhere; on Windows write them with forward slashes (`C:/Users/you/Videos/longform`).
    - `WHISPER_MODEL` → default `medium`. `TIMEZONE` → default `Europe/Madrid`.
 4. **Upload-Post platform health** — call `GET /api/uploadposts/users` and read `reauth_required` for each platform on the configured profile. If any platform requires reauth, surface it now so the user knows to either reauth (https://app.upload-post.com) or drop it from `--platforms` later.
 
@@ -331,7 +342,13 @@ Defaults: 7-day soak (clips younger than this are excluded), 90-day max age (old
 ### When to run `learn`
 
 - **Manually**, on demand: `python autoshorts.py learn`
-- **Scheduled**, weekly via cron / openclaw: `0 9 * * 1 cd ~/Documents/skill-autoshorts && ./venv/bin/python autoshorts.py learn`
+- **Scheduled**, weekly via the platform scheduler, from the skill directory:
+  - Windows (Task Scheduler, weekly Mon 09:00) — action `venv\Scripts\python.exe`, arguments
+    `autoshorts.py learn`, "Start in" set to the skill directory. One-liner to register it:
+    ```powershell
+    schtasks /create /tn "autoshorts-learn" /tr "'<SKILL_DIR>\venv\Scripts\python.exe' '<SKILL_DIR>\autoshorts.py' learn" /sc weekly /d MON /st 09:00
+    ```
+  - macOS / Linux (cron): `0 9 * * 1 cd <SKILL_DIR> && ./venv/bin/python autoshorts.py learn`
 - **Skip** if `post-history.jsonl` has fewer than ~10 entries — the rule of "5 winners + 5 losers minimum" will short-circuit the run with a "not enough data" note.
 
 ### Things to NOT do
@@ -386,21 +403,32 @@ failed to post looks published.
 
 **Normal daily run**
 
+```powershell
+# Windows, from the skill directory
+.\venv\Scripts\python.exe autoshorts.py daily
+```
+
 ```bash
-cd ~/Documents/skill-autoshorts && source venv/bin/activate
-python3 autoshorts.py daily
+# macOS / Linux, from the skill directory
+./venv/bin/python autoshorts.py daily
 ```
 
 **Re-run on a specific video instead of letting it pick**
 
 ```bash
-python3 autoshorts.py daily --video "/abs/path/to/interview-2026-08.mp4"
+# Windows
+.\venv\Scripts\python.exe autoshorts.py daily --video "C:/Users/you/Videos/interview-2026-08.mp4"
+
+# macOS / Linux
+./venv/bin/python autoshorts.py daily --video "/abs/path/to/interview-2026-08.mp4"
 ```
 
 **Weekly learning loop**
 
 ```bash
-python3 autoshorts.py learn
+# Windows:  .\venv\Scripts\python.exe autoshorts.py learn
+# macOS/Linux:
+./venv/bin/python autoshorts.py learn
 ```
 
 ## Operating notes

@@ -31,8 +31,15 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 
-INPUT_FOLDER = Path(os.getenv("INPUT_FOLDER", ROOT / "input")).expanduser()
-OUTPUT_FOLDER = Path(os.getenv("OUTPUT_FOLDER", ROOT / "output")).expanduser()
+
+def _folder(env_name: str, fallback: Path) -> Path:
+    """Env var wins when set and non-empty; a blank value falls back."""
+    raw = os.getenv(env_name, "").strip()
+    return (Path(raw) if raw else fallback).expanduser()
+
+
+INPUT_FOLDER = _folder("INPUT_FOLDER", ROOT / "input")
+OUTPUT_FOLDER = _folder("OUTPUT_FOLDER", ROOT / "output")
 STATE_FOLDER = ROOT / "state"
 STATE_FILE = STATE_FOLDER / "processed.json"
 
@@ -397,7 +404,42 @@ def cmd_extract(args: argparse.Namespace) -> None:
 
 # ---------- hook overlay ----------
 
-DEFAULT_FONT = "/System/Library/Fonts/Supplemental/Impact.ttf"
+# Impact-style face per platform; the first candidate that exists wins.
+# Override with HOOK_FONT in .env (or --font) when none are installed.
+FONT_CANDIDATES = {
+    "win32": [
+        r"C:\Windows\Fonts\impact.ttf",
+        r"C:\Windows\Fonts\ariblk.ttf",
+        r"C:\Windows\Fonts\arialbd.ttf",
+    ],
+    "darwin": [
+        "/System/Library/Fonts/Supplemental/Impact.ttf",
+        "/Library/Fonts/Impact.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Black.ttf",
+    ],
+    "linux": [
+        "/usr/share/fonts/truetype/msttcorefonts/Impact.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+    ],
+}
+
+
+def default_font() -> str | None:
+    """First installed Impact-style font for this platform, or None."""
+    env = os.getenv("HOOK_FONT")
+    if env:
+        return str(Path(env).expanduser())
+    if sys.platform.startswith("win"):
+        key = "win32"
+    elif sys.platform == "darwin":
+        key = "darwin"
+    else:
+        key = "linux"
+    for candidate in FONT_CANDIDATES[key]:
+        if Path(candidate).exists():
+            return candidate
+    return None
 
 
 def render_hook_png(text: str, png_path: Path, video_w: int, font_path: str,
@@ -480,7 +522,12 @@ def cmd_hook(args: argparse.Namespace) -> None:
     out = Path(args.output).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    font = args.font or DEFAULT_FONT
+    font = args.font or default_font()
+    if not font:
+        raise SystemExit(
+            "no hook font found. Install Impact, set HOOK_FONT=<path to a .ttf> "
+            "in .env, or pass --font."
+        )
     if not Path(font).exists():
         raise SystemExit(f"font not found: {font}")
 
