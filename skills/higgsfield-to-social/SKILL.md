@@ -107,8 +107,20 @@ Offer the Virality Predictor before publishing a video meant to perform:
 higgsfield generate create brain_activity --video <job_id_or_path> --wait
 ```
 
-Report the overall score, the hook second and the report link. A weak hook is a reason to
-regenerate the first seconds, not a reason to publish less; let the user decide.
+Report the overall score, the hook second and the report link.
+
+If the hook is weak (the attention peak lands late, or the score is low for what the user
+wants), offer a re-roll instead of moving straight to approval:
+
+1. Rewrite only the opening of the prompt: motion or a cut in the first second, the subject
+   in frame from frame one, no slow fade-in. Keep the rest of the prompt and the settings.
+2. Quote the cost of the new generation plus its scoring, and wait for a yes.
+3. Generate, score, and show both versions side by side: score, hook second, report link.
+4. The user picks one, or asks for another round.
+
+Stop after two re-rolls unless the user explicitly asks for more; every round spends credits.
+The score informs the choice, it never blocks it: the user can publish a low-scoring clip,
+and the approval in step 5 is still required either way.
 
 ### 5. Confirm
 
