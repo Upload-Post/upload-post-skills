@@ -112,15 +112,30 @@ regenerate the first seconds, not a reason to publish less; let the user decide.
 
 ### 5. Confirm
 
+Write one caption per platform, not one caption for all of them: each feed handles length,
+hashtags and line breaks differently. Keep a shared base text and adapt it:
+
+| Platform | Limit | How to write it |
+|---|---|---|
+| TikTok | 2,200 chars | hook in the first line, 3 to 5 hashtags at the end |
+| Instagram | 2,200 chars, 30 hashtags | hook first, line breaks between ideas, hashtags at the end |
+| YouTube | title 100 chars | a real title; the caption goes to the description |
+| X | 280 chars on standard accounts | one or two short lines, at most one hashtag |
+| Threads | 500 chars | conversational, no hashtag block |
+| Bluesky | 300 chars | short, no hashtag block |
+| LinkedIn | 3,000 chars | first line readable on its own, few or no hashtags |
+| Pinterest | title 100 chars | keyword-led title and description |
+
 Show the user, in one message:
 
 - the result URL (so they can watch it),
 - the profile and the platforms it will go to,
-- the caption, written for the platform (short and hook-first for TikTok and Reels, a real
-  title for YouTube), and
+- a table with the caption for each platform and its length against the limit,
 - whether it publishes now, goes to the queue, or is scheduled.
 
-Publish only after an explicit yes. A post to a public feed cannot be taken back cleanly.
+The user can edit any single caption ("make the X one shorter", "no hashtags on LinkedIn").
+Show the table again after every change, and publish only after an explicit yes on the final
+version. A post to a public feed cannot be taken back cleanly.
 
 ### 6. Publish
 
@@ -135,12 +150,24 @@ upload_video(
   videoPathOrUrl = "<higgsfield result url>",
   user = "<profile>",
   platforms = ["tiktok", "instagram", "youtube"],
-  title = "<caption>",
-  platformOptions = { tiktokIsAiGenerated: true, youtubeContainsSyntheticMedia: true }
+  title = "<base caption>",
+  platformOptions = {
+    tiktokTitle: "<TikTok caption>",
+    instagramTitle: "<Instagram caption>",
+    youtubeTitle: "<YouTube title, max 100 chars>",
+    youtubeDescription: "<YouTube description>",
+    tiktokIsAiGenerated: true,
+    youtubeContainsSyntheticMedia: true
+  }
 )
 ```
 
-For images use `upload_photos(photosPathsOrUrls = [...], user, platforms, title)`.
+Every platform takes its own caption the same way: `<platform>Title` over MCP
+(`xTitle`, `linkedinTitle`, `threadsTitle`, `blueskyTitle`, `facebookTitle`, `pinterestTitle`)
+and `<platform>_title` over HTTP (`x_title`, `linkedin_title`, …). `title` is the fallback for
+any platform without its own.
+
+For images use `upload_photos(photosPathsOrUrls = [...], user, platforms, title, platformOptions)`.
 Add `scheduledDate` (ISO-8601) to schedule, or `addToQueue: true` for the next queue slot.
 
 **HTTP**
@@ -151,8 +178,11 @@ curl -s -X POST https://api.upload-post.com/api/upload \
   -F "user=<profile>" \
   -F "platform[]=tiktok" -F "platform[]=instagram" -F "platform[]=youtube" \
   -F "video=<higgsfield result url>" \
-  -F "title=<caption>" \
-  -F "youtube_title=<title, max 100 chars>" \
+  -F "title=<base caption>" \
+  -F "tiktok_title=<TikTok caption>" \
+  -F "instagram_title=<Instagram caption>" \
+  -F "youtube_title=<YouTube title, max 100 chars>" \
+  -F "youtube_description=<YouTube description>" \
   -F "is_ai_generated=true" \
   -F "async_upload=true"
 ```

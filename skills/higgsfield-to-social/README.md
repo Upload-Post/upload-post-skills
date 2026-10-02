@@ -22,7 +22,7 @@ and post it to TikTok, Reels and Shorts tomorrow at 9am.
 | 1. Destination | The agent reads your connected accounts and picks the format: 9:16 for TikTok, Reels and Shorts, 4:5 for the Instagram feed, 16:9 for YouTube, X and LinkedIn |
 | 2. Generate | `higgsfield generate create` with Seedance, Kling, Veo, Nano Banana, GPT Image, Soul or a Marketing Studio ad, cost quoted first |
 | 3. Score | Optional Virality Predictor run on videos: hook second, attention, report link |
-| 4. Approve | You see the clip, the caption and the schedule. Nothing goes out without your yes |
+| 4. Approve | You see the clip, one caption per platform (sized to each limit, editable one by one) and the schedule. Nothing goes out without your yes |
 | 5. Publish | The CDN URL goes straight to Upload-Post, which posts or schedules it with the AI-generated label and returns the link of every post |
 
 Nothing is downloaded to your machine, and one prompt can land on 13 platforms: TikTok,
